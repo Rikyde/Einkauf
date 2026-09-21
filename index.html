@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista Spesa</title>
+  <style>
+    :root { --bg: #f4f6f8; --card: #ffffff; --primary: #2563eb; --danger: #ef4444; --text: #1f2937; --border: #e5e7eb; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 500px; background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    h1 { font-size: 1.4rem; text-align: center; margin-top: 0; color: #111827; }
+    .section { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85rem; }
+    input, select, button { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 0.95rem; }
+    button { background: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9fafb; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+    .badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 10px; color: white; font-weight: bold; }
+    .badge-Frutta { background: #10b981; } .badge-Carne { background: #ef4444; } .badge-Bevande { background: #3b82f6; } .badge-Latticini { background: #f59e0b; } .badge-Altro { background: #6b7280; }
+    .remove-btn { background: none; border: none; color: var(--danger); font-size: 1.2rem; cursor: pointer; width: auto; margin: 0; padding: 0 4px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🛒 La mia Lista Spesa</h1>
+
+  <div class="section">
+    <label>Seleziona o Crea Lista</label>
+    <select id="listSelect" onchange="switchList()"></select>
+    <div class="row" style="margin-top: 8px;">
+      <input type="text" id="newListInput" placeholder="Nuova lista...">
+      <button onclick="createList()" style="margin-top:0;">Crea</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <strong id="currentListTitle"></strong>
+      <button onclick="deleteCurrentList()" style="background:var(--danger); width:auto; padding:6px 10px; margin:0; font-size:0.8rem;">Elimina Lista</button>
+    </div>
+    <input type="text" id="itemName" placeholder="Prodotto (es. Latte)">
+    <div class="row" style="margin-top: 8px;">
+      <select id="itemCategory">
+        <option value="Frutta">Frutta / Verdura</option>
+        <option value="Carne">Carne / Pesce</option>
+        <option value="Bevande">Bevande</option>
+        <option value="Latticini">Latticini</option>
+        <option value="Altro" selected>Altro</option>
+      </select>
+      <input type="text" id="itemQty" placeholder="Qtà (es. 2 confezioni)">
+    </div>
+    <button onclick="addItem()">+ Aggiungi</button>
+  </div>
+
+  <ul id="itemsList"></ul>
+</div>
+
+<script>
+  let store = JSON.parse(localStorage.getItem('appunti_spesa_v2')) || {
+    activeList: "Spesa Casa",
+    lists: { "Spesa Casa": [] }
+  };
+
+  function saveStore() { localStorage.setItem('appunti_spesa_v2', JSON.stringify(store)); }
+
+  function render() {
+    const listSelect = document.getElementById('listSelect');
+    listSelect.innerHTML = '';
+    Object.keys(store.lists).forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      if (name === store.activeList) opt.selected = true;
+      listSelect.appendChild(opt);
+    });
+
+    document.getElementById('currentListTitle').textContent = store.activeList;
+    const itemsList = document.getElementById('itemsList');
+    itemsList.innerHTML = '';
+
+    (store.lists[store.activeList] || []).forEach((item, index) => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <div>
+          <span class="badge badge-${item.category}">${item.category}</span>
+          <strong style="margin-left:6px;">${item.name}</strong> 
+          <small style="color:#6b7280;">(${item.quantity})</small>
+        </div>
+        <button class="remove-btn" onclick="removeItem(${index})">&times;</button>
+      `;
+      itemsList.appendChild(li);
+    });
+  }
+
+  function createList() {
+    const name = document.getElementById('newListInput').value.trim();
+    if (!name || store.lists[name]) return;
+    store.lists[name] = [];
+    store.activeList = name;
+    document.getElementById('newListInput').value = '';
+    saveStore(); render();
+  }
+
+  function switchList() {
+    store.activeList = document.getElementById('listSelect').value;
+    saveStore(); render();
+  }
+
+  function deleteCurrentList() {
+    if (Object.keys(store.lists).length <= 1) return alert("Devi mantenere almeno una lista!");
+    delete store.lists[store.activeList];
+    store.activeList = Object.keys(store.lists)[0];
+    saveStore(); render();
+  }
+
+  function addItem() {
+    const name = document.getElementById('itemName').value.trim();
+    const category = document.getElementById('itemCategory').value;
+    const quantity = document.getElementById('itemQty').value.trim() || '1';
+    if (!name) return;
+    store.lists[store.activeList].push({ name, category, quantity });
+    document.getElementById('itemName').value = '';
+    document.getElementById('itemQty').value = '';
+    saveStore(); render();
+  }
+
+  function removeItem(index) {
+    store.lists[store.activeList].splice(index, 1);
+    saveStore(); render();
+  }
+
+  render();
+</script>
+
+</body>
+</html>
